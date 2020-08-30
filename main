@@ -1,0 +1,59 @@
+#!/bin/bash
+# @dwisiswant0 </3 :")
+
+PROGRAMS=(
+	"HackerOne"
+	"Bugcrowd"
+	"Intigriti"
+	"YesWeHack"
+	"HackenProof"
+	"Federacy"
+)
+
+alert() {
+	curl -sL "${1}/$(sed -e 's/\(.*\)/\L\1/' <<< "${2}")_data.json" | \
+		jq -r "${3}" | \
+		anew "$(dirname "${BASH_SOURCE[0]}")/${2}_data.txt" | \
+		awk '{print new ": `" $0 "`"}' new=":rocket: New targets from ${2}" | \
+		slackcat
+}
+
+fetch() {
+	local REPO="https://github.com/arkadiyt/bounty-targets-data"
+	local DATA="${REPO}/raw/master/data"
+
+	for PROGRAM in "${PROGRAMS[@]}"
+	do
+		local KEY_SCOPE="target"
+		local KEY_TYPES="type"
+
+		case "${PROGRAM}" in
+			"HackerOne")
+				KEY_SCOPE="asset_identifier"
+				KEY_TYPES="asset_type"
+			;;
+			"Intigriti")
+				KEY_SCOPE="endpoint"
+			;;
+		esac
+
+		alert "${DATA}" "${PROGRAM}" ".[].targets.in_scope[] | [.${KEY_TYPES}, .${KEY_SCOPE}] | @json" &
+	done
+
+	wait
+}
+
+init() {
+	[[ -z "${1}" ]] && {
+		echo -e "No SLACK_WEBHOOK_URL specified!\n"
+		echo -e "Usage:"
+		echo -e "  ./${0} https://hooks.slack.com/services/xxx/xxx/xxx"
+		exit
+	}
+
+	fetch "${1}"
+}
+
+export SLACK_WEBHOOK_URL="${1}"
+
+init "${1}"
